@@ -120,116 +120,147 @@ df = pd.merge(left=df, right=medic, how='left', on='PID', copy=True, indicator=F
 df = pd.merge(left=df, right=culture_viral, how='left', on='PID', copy=True, indicator=False)
 df = pd.merge(left=df, right=lab_result, how='left', on='PID', copy=True, indicator=False)
 
-
 print(df.shape)
 
 ''' drops null variables'''
-df2 = df.dropna(axis=1, how='all')
+df2 = df.copy()
+df2 = df2.dropna(axis=1, how='all')
 print(df2.shape)
 
 ''' drops constant variables, do not exclude Null values '''
-df3 = df2.loc[:, df2.apply(pd.Series.nunique, args=(False,)) != 1]
-print(df3.shape)
+df2 = df2.loc[:, df2.apply(pd.Series.nunique, args=(False,)) != 1]
+print(df2.shape)
 
 ''' drops duplicate columns '''
-# dupCols = [c for c in list(df3.columns) if 'duplicate' in c]
-# df3 = df3.drop(labels=dupCols, axis=1)
-# print(df3.shape)
-df4 = df3.T.drop_duplicates().T
-print(df4.shape)
+df2 = df2.T.drop_duplicates().T
+print(df2.shape)
+
+
+'''
+drop randomization variables:
+
+BLOCK_NB: Randomization Block number
+RND_ID: Treatment number (randomization)
+'''
+df2.drop(labels=['RND_ID_wdemog', 'RND_ID_welig', 'RND_ID_wpneumo', 'BLOCK_NB_pid'], axis=1, inplace=True)
+
+'''
+drop date variables
+
+DATE_REF_wdemog, DOB_RAW_wdemog, STRT_DAT_wpneumo, STOP_DAT_wpneumo, ACTRDATE_wnpap (date of visit), LC_RDAT_wconc (last contact), BRK_RDAT_wconc (of unblinding)
+'''
+df2.drop(labels=['DATE_REF_wdemog', 'DOB_RAW_wdemog', 'STRT_DAT_wpneumo', 'STOP_DAT_wpneumo', 'ACTRDATE_wnpap', 'LC_RDAT_wconc', 'BRK_RDAT_wconc'], axis=1, inplace=True)
+
+'''
+drop duplicates: have similar name to the one in demog but different in number of nulls
+
+center: CENTER_wdemog, CENTER_wpneumo, CENTER_welig
+schedulte: RDE_SCHD_wdemog, RDE_SCHD_wpneumo, RDE_SCHD_welig
+Country: CTY_COD_wdemog, CTY_NAM_wdemog, CTY_COD_ wpneumo, CTY_NAM_ wpneumo, CTY_COD_ welig, CTY_NAM_ welig
+GROUP_NB: GROUP_NB_wdemog, GROUP_NB_welig, GROUP_NB_wpneumo, 'GRP_VIAL_wnpap'
+Eligibility: ELIG_MA_welig
+elimination: ELIM_SMA_pid, ELIM_SMA_welig
+Treatment: TREATMNT_welig, TREATMNT_wpneumo
+
+vaccine: VACCINE_expogn, P_CODE_expogn
+
+vial_type: VIAL_TYP_expogn, INJECT_wnpap
+
+'''
+df2.drop(labels=['CENTER_wpneumo', 'CENTER_welig', 'RDE_SCHD_wpneumo', 'RDE_SCHD_welig',
+                'CTY_NAM_wdemog', 'CTY_COD_wpneumo', 'CTY_NAM_wpneumo', 'CTY_COD_welig',
+                'CTY_NAM_welig', 'GROUP_NB_welig', 'GROUP_NB_wpneumo','GRP_VIAL_wnpap',
+                'ELIG_MA_welig', 'ELIM_SMA_pid', 'ELIM_SMA_welig', 'TREATMNT_welig',
+                'TREATMNT_wpneumo', 'P_CODE_expogn', 'INJECT_wnpap'], axis=1, inplace=True)
+
+''''
+drop GROUP_NB_wdemog as it is a duplicate of treatment
+'''
+df2.drop('GROUP_NB_wdemog', axis=1, inplace=True)
+
+
+''''
+drop ETHNIC_wdemog as it is a duplicate of ETHN_NEW_wdemog
+'''
+df2.drop('ETHNIC_wdemog', axis=1, inplace=True)
+
+
+'''
+drop variables from wpneumo dataset, keep one binary variable for pneumonia
+'''
+wpneumo_cols = [c for c in list(df2.columns) if '_wpneumo' in c]
+wpneumo_cols.remove('OUTCOME_wpneumo')
+df2.drop(labels= wpneumo_cols, axis=1, inplace=True)
 
 ''' finds columns with missing values'''
-r = df4.isnull().any()
+r = df2.isnull().any()
 print(r.index[r == True])
 # df4.to_csv('C:\\Users\\mot16\\projects\\master\\data\\df3.csv')
-df5 = df4.copy()
-
-df5.drop(labels=['RDE_SCHD_welig', 'RND_ID_welig', 'GROUP_NB_welig', 'CENTER_welig', 'CTY_COD_welig', 'CTY_NAM_welig', 'ELIG_MA_welig', 'ELIM_SMA_welig', 'TREATMNT_welig'], axis=1, inplace=True)
-df5.drop(labels=['RDE_SCHD_wpneumo', 'RND_ID_wpneumo', 'GROUP_NB_wpneumo', 'CENTER_wpneumo', 'CTY_COD_wpneumo', 'CTY_NAM_wpneumo', 'TREATMNT_wpneumo'], axis=1, inplace=True)
-
-df5.ELIG_MA_wdemog.fillna(value='NA', inplace=True)
-
-df5.ELIM_RMA_wdemog.replace(to_replace=1.0, value='Y', inplace=True)
-df5.ELIM_RMA_wdemog.fillna(value='N', inplace=True)
 
 
-df5.ELIM_SMA_wdemog.replace(to_replace=1.0, value='Y', inplace=True)
-df5.ELIM_SMA_wdemog.fillna(value='N', inplace=True)
+# df2.ELIG_MA_wdemog.fillna(value='NA', inplace=True)
+
+df2.ELIM_RMA_wdemog.replace(to_replace=1.0, value='Y', inplace=True)
+df2.ELIM_RMA_wdemog.fillna(value='N', inplace=True)
 
 
-df5.ELI_F3MA_wdemog.replace(to_replace=1.0, value='Y', inplace=True)
-df5.ELI_F3MA_wdemog.fillna(value='N', inplace=True)
+df2.ELIM_SMA_wdemog.replace(to_replace=1.0, value='Y', inplace=True)
+df2.ELIM_SMA_wdemog.fillna(value='N', inplace=True)
 
 
-df5.ELI_F4MA_wdemog.replace(to_replace=1.0, value='Y', inplace=True)
-df5.ELI_F4MA_wdemog.fillna(value='N', inplace=True)
+df2.ELI_F3MA_wdemog.replace(to_replace=1.0, value='Y', inplace=True)
+df2.ELI_F3MA_wdemog.fillna(value='N', inplace=True)
 
 
-df5.ELIM_RMA_pid.replace(to_replace=1.0, value='Y', inplace=True)
-df5.ELIM_RMA_pid.fillna(value='N', inplace=True)
-
-df5.ELIM_SMA_pid.replace(to_replace=1.0, value='Y', inplace=True)
-df5.ELIM_SMA_pid.fillna(value='N', inplace=True)
-
-''' the only missing age_cat belogs to subject with age = 66. so age_cat should be 2 for this subject Agecat = 2 where age >=50 years'''
-df5.AGECAT_pid.fillna(value=2, inplace=True)
+df2.ELI_F4MA_wdemog.replace(to_replace=1.0, value='Y', inplace=True)
+df2.ELI_F4MA_wdemog.fillna(value='N', inplace=True)
 
 
-df5.P_APSIDE_reaccod.fillna(value='NA', inplace=True)
+df2.ELIM_RMA_pid.replace(to_replace=1.0, value='Y', inplace=True)
+df2.ELIM_RMA_pid.fillna(value='N', inplace=True)
 
+#df2.ELIM_SMA_pid.replace(to_replace=1.0, value='Y', inplace=True)
+#df2.ELIM_SMA_pid.fillna(value='N', inplace=True)
 
-df5.P_APSITE_reaccod.replace(to_replace=1.0, value='DELTOID', inplace=True)
-df5.P_APSITE_reaccod.fillna(value='NA', inplace=True)
+''' the only missing age_cat belongs to subject with age = 66. so age_cat should be 2 for this subject Agecat = 2 where age >=50 years'''
+df2.AGECAT_pid.fillna(value=2, inplace=True)
 
+# df2.P_APSIDE_reaccod.fillna(value='NA', inplace=True)
 
-df5.EFF_VIAL_reaccod.fillna(value=0, inplace=True)
+df2.P_APSITE_reaccod.replace(to_replace=1.0, value='DELTOID', inplace=True)
 
+# df2.P_APSITE_reaccod.fillna(value='NA', inplace=True)
 
-df5.DECISION_wconc.fillna(value='NA', inplace=True)
+df2.EFF_VIAL_reaccod.fillna(value=0, inplace=True)
 
-
-df5.BRK_RDAT_wconc.fillna(value='NA', inplace=True)
-
-df5.LC_GC_wconc.fillna(value='NA', inplace=True)
-
-
-df5.LC_RDAT_wconc.fillna(value='NA', inplace=True)
-
-
-df5.NOPROTCA_wconc.fillna(value='NA', inplace=True)
-
-
-df5.PREGNANT_wconc.fillna(value='NA', inplace=True)
+# df2.DECISION_wconc.fillna(value='NA', inplace=True)
+# 
+# df2.BRK_RDAT_wconc.fillna(value='NA', inplace=True)
+# 
+# df2.LC_GC_wconc.fillna(value='NA', inplace=True)
+# 
+# df2.LC_RDAT_wconc.fillna(value='NA', inplace=True)
+# 
+# df2.NOPROTCA_wconc.fillna(value='NA', inplace=True)
+# 
+# df2.PREGNANT_wconc.fillna(value='NA', inplace=True)
 
 flu_seasons = ['SEASON1_wphist', 'SEASON2_wphist', 'SEASON3_wphist']
-concvac_cols = [c for c in list(df5.columns) if concvac_prefix in c]
-medic_cols = [c for c in list(df5.columns) if medic_prefix in c]
+concvac_cols = [c for c in list(df2.columns) if concvac_prefix in c]
+medic_cols = [c for c in list(df2.columns) if medic_prefix in c]
 other = ['med_gsk_cod', 'RAWRES', 'viral_res_binary' , 'rt_PCR', 'concvac']
 
 cols = flu_seasons + concvac_cols + medic_cols + other
 for label in cols:
-    df5.loc[:, label].fillna(value='N', inplace=True)
+    df2.loc[:, label].fillna(value='N', inplace=True)
     
-# df5.loc[:, flu_seasons + concvac_cols + medic_cols + other].fillna(value= 'N', inplace = True)
 
 ''' fill other missing values with 'NA' '''
-df5.fillna(value='NA', inplace=True)
+df2.fillna(value='NA', inplace=True)
+print(df2.shape)
 
-print(df5.shape)
-# df6 = df5.T.drop_duplicates().T
-# print(df6.shape)
-df5.to_csv(dataDir + "gsk_108134_joined_allvars.csv", index=False, quoting=QUOTE_NONNUMERIC)
+df2.to_csv("C:\\Users\\mot16\\projects\\master\\data\\" + "gsk_108134_joined_allvars.csv", index=False, quoting=QUOTE_NONNUMERIC)
 
 ''' drops conc vac and medic dummies '''
-df6 = df5.drop(labels=concvac_cols + medic_cols, axis=1, inplace=False)
-df6.to_csv(dataDir + "gsk_108134_joined_no_dummies.csv", index=False, quoting=QUOTE_NONNUMERIC)
-
-
-
-
-
-
-
-
-
-
+df2_ = df2.drop(labels=concvac_cols + medic_cols, axis=1, inplace=False)
+df2_.to_csv("C:\\Users\\mot16\\projects\\master\\data\\" + "gsk_108134_joined_no_dummies.csv", index=False, quoting=QUOTE_NONNUMERIC)
